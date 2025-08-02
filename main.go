@@ -4,6 +4,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"itmrchow/go-todolist-service/internal/infrastructure/config"
+	"itmrchow/go-todolist-service/internal/infrastructure/logger"
 )
 
 func main() {
@@ -14,6 +15,15 @@ func main() {
 		log.Fatal().Err(configErr).Str("module", "config").Msg("config init error")
 	}
 
-	// Server
+	// Logger
+	logger := logger.LoggerImpl{}
+	_, loggerErr := logger.NewLogger(config.GetLogConfig())
+	if loggerErr != nil {
+		log.Fatal().Err(loggerErr).Str("module", "logger").Msg("logger init error")
+	}
+
+	// DB
+
+	// Router
 
 }

@@ -113,9 +113,8 @@ type DatabaseService interface {
 }
 
 // 日誌服務
-type LoggerService interface {
-    InitLogger(config *LogConfig) (zerolog.Logger, error)
-    GetLogger() zerolog.Logger
+type Logger interface {
+    NewLogger(config *LogConfig) (zerolog.Logger, error)
 }
 
 // HTTP 服務器服務
@@ -169,8 +168,6 @@ type ServerConfig struct {
 
 type LogConfig struct {
     Level  string `mapstructure:"level"`
-    Format string `mapstructure:"format"`
-    Output string `mapstructure:"output"`
 }
 ```
 
@@ -326,7 +323,8 @@ go-todolist-service/
 │   ├── domain/               # 領域層 (Entities & Business Logic)
 │   ├── delivery/             # 交付層 (Controllers & Handlers)
 │   └── infrastructure/       # 基礎設施層 (External Dependencies)
-│       └── config/           # 配置管理
+│       ├── config/           # 配置管理
+│       └── logger/           # 日誌系統
 └── .kiro/                    # Kiro 專案管理配置
     ├── specs/                # 規格說明文件
     │   └── {feature-name}/   # 專案功能文件

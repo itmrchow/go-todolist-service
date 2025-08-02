@@ -20,6 +20,7 @@ Kiro-style Spec Driven Development implementation using claude code slash comman
 ## Development Guidelines
 - Think in English, but generate responses in Traditional Chinese
 - follow SOLID and Clean Architecture principles
+- 你會列出你的設計提案 , plan the next steps , 不執行它 , 直到我確認這些提案和計劃可行
 
 ## Steering Configuration
 
