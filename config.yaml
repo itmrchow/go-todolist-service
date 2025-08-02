@@ -1,0 +1,13 @@
+# server
+SERVER_PORT: 8080
+
+# database
+DB_URL_SUFFIX: ?charset=utf8mb4&parseTime=True&loc=Local
+DB_ACCOUNT: 
+DB_PASSWORD: 
+DB_HOST: localhost
+DB_PORT: 3306
+DB_NAME: todolist_db
+
+# log
+LOG_LEVEL: debug

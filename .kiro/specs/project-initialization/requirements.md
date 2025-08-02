@@ -17,6 +17,7 @@
 4. 建立資料庫連接
    1. mysql連接
    2. mysql資料表建立
+   3. docker-compose 提供 MySQL 外部依賴，環境變數連結根目錄 .env
 5. 建立api框架
    1. 初始化api框架
    2. port設定取自env

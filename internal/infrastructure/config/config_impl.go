@@ -15,8 +15,11 @@ func (c *ConfigImpl) LoadConfig() error {
 	viper.AutomaticEnv()
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	viper.AddConfigPath("./internal/config")
+	
+	// 簡化路徑設定，優先從根目錄載入
+	viper.AddConfigPath(".")                                    // 根目錄（main 執行）
+	viper.AddConfigPath("../../../")                           // 測試執行時的相對路徑
+	viper.AddConfigPath("./internal/infrastructure/config")     // 備用路徑
 
 	if err := viper.ReadInConfig(); err != nil {
 		return err

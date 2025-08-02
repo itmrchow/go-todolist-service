@@ -31,6 +31,7 @@ func (l *LoggerImpl) NewLogger(config *config.LogConfig) (zerolog.Logger, error)
 		Level(level).
 		With().
 		Timestamp().
+		Caller().
 		Logger()
 
 	// 儲存 logger 實例
