@@ -8,6 +8,19 @@
 
 ## Requirements
 <!-- Detailed user stories will be generated in /kiro:spec-requirements phase -->
+1. 建立main.go
+2. 建立config設定
+   1. config 預設取得來自環境變數
+   2. config yaml 建立
+3. 建立log
+   1. logger 初始化
+4. 建立資料庫連接
+   1. mysql連接
+   2. mysql資料表建立
+5. 建立api框架
+   1. 初始化api框架
+   2. port設定取自env
+   3. router group設定 , 現階段使用v1
 
 ---
 **STATUS**: Ready for requirements generation

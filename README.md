@@ -14,6 +14,8 @@ todolist 基於 golang 與 clean architecture 的實作.
 - log: zerolog
 - orm: gorm
 - config: viper
+- test: testify
+- mock: 
 
 ## features
 ### task
