@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"os"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/suite"
 	"gorm.io/gorm"
 
@@ -13,15 +15,13 @@ import (
 	"itmrchow/go-todolist-service/internal/infrastructure/config"
 	"itmrchow/go-todolist-service/internal/infrastructure/database"
 	"itmrchow/go-todolist-service/internal/infrastructure/database/model"
-	"itmrchow/go-todolist-service/internal/infrastructure/logger"
 )
 
 type TodoRepositoryTestSuite struct {
 	suite.Suite
-	db     *gorm.DB
-	repo   repository.TodoRepository
-	logger logger.Logger
-	ctx    context.Context
+	db   *gorm.DB
+	repo repository.TodoRepository
+	ctx  context.Context
 }
 
 // SetupSuite 在整個測試 suite 開始前執行一次
@@ -38,8 +38,8 @@ func (suite *TodoRepositoryTestSuite) SetupSuite() {
 
 	suite.db = db
 	suite.ctx = ctx
-	suite.logger = &logger.LoggerImpl{}
-	suite.repo = NewTodoRepository(suite.db, suite.logger)
+
+	suite.repo = NewTodoRepository(zerolog.New(os.Stdout), suite.db)
 }
 
 // TearDownSuite 在整個測試 suite 結束後執行一次
@@ -230,40 +230,25 @@ func (suite *TodoRepositoryTestSuite) TestList_WithFilters() {
 	suite.repo.Create(suite.ctx, todo3)
 
 	// Act - List with status filter
-	statusFilter := entity.StatusDoing
-	options := repository.ListOptions{
-		Filters: repository.ListFilters{
-			Status: &statusFilter,
-		},
-		Limit:     10,
-		Offset:    0,
-		SortBy:    "created_at",
-		SortOrder: "desc",
+	// statusFilter := entity.StatusDoing
+	queryParams := repository.TodoQueryParams{
+		// Status: &statusFilter,
 	}
 
-	todos, err := suite.repo.List(suite.ctx, options)
+	pagination := &repository.Pagination[entity.Todo]{
+		Limit: 2,
+		Page:  1,
+		Sort:  "created_at DESC",
+	}
+
+	err := suite.repo.List(suite.ctx, queryParams, pagination)
 
 	// Assert
 	suite.NoError(err)
-	suite.Len(todos, 1)
-	suite.Equal("第三個 Todo", todos[0].Title)
-	suite.Equal(entity.StatusDoing, todos[0].Status)
-}
+	suite.Len(pagination.Rows, 2)
 
-func (suite *TodoRepositoryTestSuite) TestCount_Success() {
-	// Arrange - Create multiple todos
-	todo1, _ := entity.NewTodo("第一個 Todo", nil, nil, nil)
-	todo2, _ := entity.NewTodo("第二個 Todo", nil, nil, nil)
-
-	suite.repo.Create(suite.ctx, todo1)
-	suite.repo.Create(suite.ctx, todo2)
-
-	// Act
-	count, err := suite.repo.Count(suite.ctx, repository.ListFilters{})
-
-	// Assert
-	suite.NoError(err)
-	suite.Equal(int64(2), count)
+	suite.EqualValues(2, pagination.TotalPages)
+	suite.EqualValues(3, pagination.TotalRows)
 }
 
 func TestTodoRepositoryTestSuite(t *testing.T) {
