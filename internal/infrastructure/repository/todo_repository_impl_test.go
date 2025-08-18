@@ -176,9 +176,14 @@ func (suite *TodoRepositoryTestSuite) TestUpdate_Success() {
 	createdTodo.Status = entity.StatusDoing
 
 	// Act
-	updatedTodo, err := suite.repo.Update(suite.ctx, createdTodo)
+	rowsAffected, err := suite.repo.Update(suite.ctx, createdTodo)
 
 	// Assert
+	suite.NoError(err)
+	suite.Equal(int64(1), rowsAffected)
+	
+	// Verify the update by fetching the record
+	updatedTodo, err := suite.repo.GetByID(suite.ctx, createdTodo.ID)
 	suite.NoError(err)
 	suite.NotNil(updatedTodo)
 	suite.Equal(createdTodo.ID, updatedTodo.ID)
@@ -186,6 +191,52 @@ func (suite *TodoRepositoryTestSuite) TestUpdate_Success() {
 	suite.Equal("新的描述", *updatedTodo.Description)
 	suite.Equal(entity.StatusDoing, updatedTodo.Status)
 	suite.True(updatedTodo.UpdatedAt.After(createdTodo.UpdatedAt))
+}
+
+func (suite *TodoRepositoryTestSuite) TestUpdate_NilInput() {
+	// Act
+	rowsAffected, err := suite.repo.Update(suite.ctx, nil)
+
+	// Assert
+	suite.Error(err)
+	suite.Contains(err.Error(), "todo cannot be nil")
+	suite.Equal(int64(0), rowsAffected)
+}
+
+func (suite *TodoRepositoryTestSuite) TestUpdate_ZeroID() {
+	// Arrange
+	todo := &entity.Todo{
+		ID:    0, // Zero ID should cause error
+		Title: "Test Title",
+	}
+
+	// Act
+	rowsAffected, err := suite.repo.Update(suite.ctx, todo)
+
+	// Assert
+	suite.Error(err)
+	suite.Contains(err.Error(), "todo ID cannot be 0")
+	suite.Equal(int64(0), rowsAffected)
+}
+
+func (suite *TodoRepositoryTestSuite) TestUpdate_NotFound() {
+	// Arrange - Create a todo with non-existent ID
+	now := time.Now().UTC()
+	nonExistentTodo := &entity.Todo{
+		ID:          999,
+		Title:       "Non-existent Todo",
+		Description: nil,
+		Status:      entity.StatusPending,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	// Act
+	rowsAffected, err := suite.repo.Update(suite.ctx, nonExistentTodo)
+
+	// Assert
+	suite.NoError(err) // No error with Updates method
+	suite.Equal(int64(0), rowsAffected) // 0 rows affected means not found
 }
 
 func (suite *TodoRepositoryTestSuite) TestDelete_Success() {

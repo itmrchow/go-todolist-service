@@ -18,8 +18,8 @@ type TodoRepository interface {
 	// Returns nil if todo is not found or is soft deleted
 	GetByID(ctx context.Context, id uint) (*entity.Todo, error)
 
-	// Update updates an existing todo
-	Update(ctx context.Context, todo *entity.Todo) (*entity.Todo, error)
+	// Update updates an existing todo and returns the number of affected rows
+	Update(ctx context.Context, todo *entity.Todo) (int64, error)
 
 	// Delete soft deletes a todo (sets DeletedAt timestamp)
 	Delete(ctx context.Context, id uint) error

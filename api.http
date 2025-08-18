@@ -28,3 +28,14 @@ Content-Type: application/json
     "sort_order": "asc"                   
   }
 }
+
+### update-todo
+POST http://localhost:8080/api/v1/update-todo
+Content-Type: application/json
+
+{
+  "id": 2,
+  "title": "UpdateTest",
+  "description": "update test desc"
+}
+

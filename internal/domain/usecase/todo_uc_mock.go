@@ -69,3 +69,17 @@ func (mr *MockTodoUseCaseMockRecorder) FindTodo(ctx, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindTodo", reflect.TypeOf((*MockTodoUseCase)(nil).FindTodo), ctx, req)
 }
+
+// UpdateTodo mocks base method.
+func (m *MockTodoUseCase) UpdateTodo(ctx context.Context, req UpdateTodoRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateTodo", ctx, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateTodo indicates an expected call of UpdateTodo.
+func (mr *MockTodoUseCaseMockRecorder) UpdateTodo(ctx, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateTodo", reflect.TypeOf((*MockTodoUseCase)(nil).UpdateTodo), ctx, req)
+}
