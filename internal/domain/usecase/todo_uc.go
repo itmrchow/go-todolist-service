@@ -3,6 +3,8 @@ package usecase
 import (
 	"context"
 	"time"
+
+	"itmrchow/go-todolist-service/internal/utils/dto"
 )
 
 //go:generate mockgen -source=todo_uc.go -destination=todo_uc_mock.go -package=usecase
@@ -13,6 +15,8 @@ type TodoUseCase interface {
 	// - validation fail
 	// - internal fail
 	CreateTodo(ctx context.Context, req CreateTodoRequest) (*CreateTodoResponse, error)
+
+	FindTodo(ctx context.Context, req FindTodoRequest) (*FindTodoResponse, error)
 
 	// GetTodo(ctx context.Context, id uint) (*GetTodoResponse, error)
 	// UpdateTodo(ctx context.Context, id uint, req UpdateTodoRequest) (*UpdateTodoResponse, error)
@@ -28,4 +32,29 @@ type CreateTodoRequest struct {
 
 type CreateTodoResponse struct {
 	ID uint
+}
+
+type FindTodoRequest struct {
+	Keyword     *string           `json:"keyword"`
+	Status      *string           `json:"status"`
+	CreatedFrom *time.Time        `json:"created_from"`
+	CreatedTo   *time.Time        `json:"created_to"`
+	DueFrom     *time.Time        `json:"due_from"`
+	DueTo       *time.Time        `json:"due_to"`
+	Pagination  dto.PaginationReq `json:"pagination"`
+}
+
+type FindTodoResponse struct {
+	Todos      []TodoResponse     `json:"todos"`
+	Pagination dto.PaginationResp `json:"pagination"`
+}
+
+type TodoResponse struct {
+	ID          uint       `json:"id"`
+	Title       string     `json:"title"`
+	Description *string    `json:"description,omitempty"`
+	Status      string     `json:"status"`
+	DueDate     *time.Time `json:"due_date,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }

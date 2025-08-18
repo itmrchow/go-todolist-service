@@ -6,15 +6,19 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/mock/gomock"
 
 	v1 "itmrchow/go-todolist-service/internal/delivery/http/dto/v1"
 	"itmrchow/go-todolist-service/internal/domain/usecase"
+	"itmrchow/go-todolist-service/internal/utils/dto"
 )
 
 type TodoHandlerImplTestSuite struct {
@@ -33,7 +37,7 @@ func (suite *TodoHandlerImplTestSuite) SetupTest() {
 	suite.ctrl = gomock.NewController(suite.T())
 	suite.mockTodoUc = usecase.NewMockTodoUseCase(suite.ctrl)
 
-	suite.handler = NewTodoHandlerImpl(suite.mockTodoUc)
+	suite.handler = NewTodoHandlerImpl(zerolog.New(os.Stdout), suite.mockTodoUc)
 }
 
 func (suite *TodoHandlerImplTestSuite) TearDownTest() {
@@ -106,7 +110,7 @@ func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_CreateTodo() {
 			mockSetup: func() {
 				suite.mockTodoUc.EXPECT().
 					CreateTodo(gomock.Any(), gomock.Any()).
-					Return(nil, errors.New("validation fail: title cannot be empty"))
+					Return(&usecase.CreateTodoResponse{ID: 1}, nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedResp: v1.CreateTodoResponse{
@@ -138,21 +142,8 @@ func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_CreateTodo() {
 			// Setup
 			tt.mockSetup()
 
-			// Create request
-			var reqBody []byte
-			if str, ok := tt.body.(string); ok {
-				reqBody = []byte(str)
-			} else {
-				reqBody, _ = json.Marshal(tt.body)
-			}
-
-			req := httptest.NewRequest(http.MethodPost, "/create-todo", bytes.NewBuffer(reqBody))
-			req.Header.Set("Content-Type", "application/json")
-			w := httptest.NewRecorder()
-
-			// Create gin context
-			c, _ := gin.CreateTestContext(w)
-			c.Request = req
+			// create gin context
+			c, w := CreateGinContext("/create-todo", tt.body)
 
 			// Execute
 			suite.handler.CreateTodo(c)
@@ -174,4 +165,184 @@ func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_CreateTodo() {
 			}
 		})
 	}
+}
+
+func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_FindTodo() {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name         string
+		body         interface{}
+		mockSetup    func()
+		expectedCode int
+		expectedResp interface{}
+	}{
+		{
+			name: "Invalid JSON",
+			body: "invalid json",
+			mockSetup: func() {
+				// no mock setup needed for JSON parsing error
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: map[string]interface{}{
+				"error": "invalid request format",
+			},
+		},
+		{
+			name: "UseCase FindTodo Fail",
+			body: map[string]interface{}{
+				"keyword": "test",
+				"status":  "pending",
+				"pagination": map[string]interface{}{
+					"page":       1,
+					"page_size":  10,
+					"sort_by":    "created_at",
+					"sort_order": "desc",
+				},
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					FindTodo(gomock.Any(), gomock.Any()).
+					Return(nil, errors.New("internal database error"))
+			},
+			expectedCode: http.StatusInternalServerError,
+			expectedResp: map[string]interface{}{
+				"error": "internal server error",
+			},
+		},
+		{
+			name: "Success",
+			body: map[string]interface{}{
+				"keyword": "test",
+				"status":  "pending",
+				"pagination": map[string]interface{}{
+					"page":       1,
+					"page_size":  10,
+					"sort_by":    "created_at",
+					"sort_order": "desc",
+				},
+			},
+			mockSetup: func() {
+				now := time.Now()
+				suite.mockTodoUc.EXPECT().
+					FindTodo(gomock.Any(), gomock.Any()).
+					Return(&usecase.FindTodoResponse{
+						Todos: []usecase.TodoResponse{
+							{
+								ID:          1,
+								Title:       "test todo",
+								Description: stringPtr("test description"),
+								Status:      "pending",
+								DueDate:     &now,
+								CreatedAt:   now,
+								UpdatedAt:   now,
+							},
+						},
+						Pagination: dto.PaginationResp{
+							Page:       1,
+							PageSize:   10,
+							TotalCount: 1,
+							TotalPages: 1,
+						},
+					}, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedResp: func() v1.FindTodoResponse {
+				now := time.Now()
+				return v1.FindTodoResponse{
+					Todos: []v1.TodoItem{
+						{
+							ID:          1,
+							Title:       "test todo",
+							Description: stringPtr("test description"),
+							Status:      "pending",
+							DueDate:     &now,
+							CreatedAt:   now,
+							UpdatedAt:   now,
+						},
+					},
+					Pagination: dto.PaginationResp{
+						Page:       1,
+						PageSize:   10,
+						TotalCount: 1,
+						TotalPages: 1,
+					},
+				}
+			}(),
+		},
+	}
+
+	for _, tt := range tests {
+		suite.Run(tt.name, func() {
+			// Setup
+			tt.mockSetup()
+
+			// Create request
+			c, w := CreateGinContext("/find-todo", tt.body)
+
+			// Execute
+			suite.handler.FindTodo(c)
+
+			// Assert
+			assert.Equal(suite.T(), tt.expectedCode, w.Code)
+
+			// Handle different response types for assertion
+			if httpResp, ok := tt.expectedResp.(v1.FindTodoResponse); ok {
+				var resp v1.FindTodoResponse
+				err := json.Unmarshal(w.Body.Bytes(), &resp)
+				assert.NoError(suite.T(), err)
+				
+				// Compare non-time fields first
+				assert.Equal(suite.T(), len(httpResp.Todos), len(resp.Todos))
+				if len(httpResp.Todos) > 0 && len(resp.Todos) > 0 {
+					expectedTodo := httpResp.Todos[0]
+					actualTodo := resp.Todos[0]
+					
+					assert.Equal(suite.T(), expectedTodo.ID, actualTodo.ID)
+					assert.Equal(suite.T(), expectedTodo.Title, actualTodo.Title)
+					assert.Equal(suite.T(), expectedTodo.Description, actualTodo.Description)
+					assert.Equal(suite.T(), expectedTodo.Status, actualTodo.Status)
+					
+					// For time fields, just check they are not zero values
+					if expectedTodo.DueDate != nil {
+						assert.NotNil(suite.T(), actualTodo.DueDate)
+					}
+					assert.False(suite.T(), actualTodo.CreatedAt.IsZero())
+					assert.False(suite.T(), actualTodo.UpdatedAt.IsZero())
+				}
+				assert.Equal(suite.T(), httpResp.Pagination, resp.Pagination)
+			} else {
+				var resp map[string]interface{}
+				err := json.Unmarshal(w.Body.Bytes(), &resp)
+				assert.NoError(suite.T(), err)
+				assert.Equal(suite.T(), tt.expectedResp, resp)
+			}
+		})
+	}
+}
+
+func CreateGinContext(target string, body interface{}) (*gin.Context,
+	*httptest.ResponseRecorder) {
+	// Create request
+	var reqBody []byte
+	if str, ok := body.(string); ok {
+		reqBody = []byte(str)
+	} else {
+		reqBody, _ = json.Marshal(body)
+	}
+
+	req := httptest.NewRequest(http.MethodPost, target, bytes.NewBuffer(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	// Create gin context
+	c, _ := gin.CreateTestContext(w)
+	c.Request = req
+
+	return c, w
+}
+
+// stringPtr is a helper function to create a pointer to string
+func stringPtr(s string) *string {
+	return &s
 }

@@ -49,7 +49,8 @@ func (r *RouterImpl) SetupRoutes() *gin.Engine {
 // RegisterV1Routes registers all v1 API routes.
 func (r *RouterImpl) RegisterV1Routes(routerGroup *gin.RouterGroup) {
 
-	routerGroup.POST("/create-todo", r.todoV1Handler.CreateTodo) // 假設有一個 CreateTodo 處理器
+	routerGroup.POST("/create-todo", r.todoV1Handler.CreateTodo) // 新增todo
+	routerGroup.POST("/find-todo", r.todoV1Handler.FindTodo)     // 查詢todo
 
 	// 目前 v1 路由群組為空，未來將在此新增業務邏輯路由
 	// 例如：

@@ -39,8 +39,8 @@ func main() {
 	}
 
 	// Logger
-	logger := logger.LoggerImpl{}
-	_, loggerErr := logger.NewLogger(config.GetLogConfig())
+	loggerImpl := logger.LoggerImpl{}
+	logger, loggerErr := loggerImpl.NewLogger(config.GetLogConfig())
 	if loggerErr != nil {
 		log.Fatal().Err(loggerErr).Str("module", "logger").Msg("logger init error")
 	}
@@ -60,14 +60,14 @@ func main() {
 	log.Info().Str("module", "database").Msg("Database migration completed successfully")
 
 	// Repository
-	todoRepo := repository.NewTodoRepository(gormDb, &logger)
+	todoRepo := repository.NewTodoRepository(logger, gormDb)
 
 	// Usecase
 	todoUc := usecase.NewTodoUseCaseImpl(todoRepo)
 
 	// Router handlers
 	healthHandler := handler.NewHealthHandler()
-	todoV1Handler := v1.NewTodoHandlerImpl(todoUc) // 假設有一個 TodoUseCase
+	todoV1Handler := v1.NewTodoHandlerImpl(logger, todoUc) // 假設有一個 TodoUseCase
 
 	// Router
 	appRouter := router.NewRouter(

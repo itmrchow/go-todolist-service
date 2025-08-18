@@ -5,12 +5,12 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/rs/zerolog"
 	"gorm.io/gorm"
 
 	"itmrchow/go-todolist-service/internal/domain/entity"
 	"itmrchow/go-todolist-service/internal/domain/repository"
 	"itmrchow/go-todolist-service/internal/infrastructure/database/model"
-	"itmrchow/go-todolist-service/internal/infrastructure/logger"
 )
 
 var _ repository.TodoRepository = &TodoRepositoryImpl{}
@@ -18,11 +18,11 @@ var _ repository.TodoRepository = &TodoRepositoryImpl{}
 // TodoRepositoryImpl implements the TodoRepository interface using GORM
 type TodoRepositoryImpl struct {
 	db     *gorm.DB
-	logger logger.Logger
+	logger zerolog.Logger
 }
 
 // NewTodoRepository creates a new TodoRepository instance
-func NewTodoRepository(db *gorm.DB, logger logger.Logger) repository.TodoRepository {
+func NewTodoRepository(logger zerolog.Logger, db *gorm.DB) repository.TodoRepository {
 	return &TodoRepositoryImpl{
 		db:     db,
 		logger: logger,
@@ -116,47 +116,31 @@ func (r *TodoRepositoryImpl) Delete(ctx context.Context, id uint) error {
 }
 
 // List retrieves todos with pagination and filtering options
-func (r *TodoRepositoryImpl) List(ctx context.Context, options repository.ListOptions) ([]*entity.Todo, error) {
-	query := r.db.WithContext(ctx).Model(&model.Todo{})
+func (r *TodoRepositoryImpl) List(
+	ctx context.Context,
+	queryParams repository.TodoQueryParams,
+	pagination *repository.Pagination[entity.Todo],
+) error {
+	var todoModels []*model.Todo
 
+	query := r.db.WithContext(ctx)
 	// Apply filters
-	query = r.applyFilters(query, options.Filters)
-
-	// Apply sorting
-	if options.SortBy != "" {
-		order := options.SortBy
-		if options.SortOrder == "desc" {
-			order += " DESC"
-		} else {
-			order += " ASC"
-		}
-		query = query.Order(order)
-	} else {
-		// Default sorting
-		query = query.Order("created_at DESC")
-	}
-
-	// Apply pagination
-	if options.Limit > 0 {
-		query = query.Limit(options.Limit)
-	}
-	if options.Offset > 0 {
-		query = query.Offset(options.Offset)
-	}
+	query = r.applyFilters(query, queryParams)
 
 	// Execute query
-	var todoModels []*model.Todo
-	if err := query.Find(&todoModels).Error; err != nil {
-		return nil, fmt.Errorf("failed to list todos: %w", err)
+	if err := query.Scopes(Paginate(model.Todo{}, pagination, query)).Find(&todoModels).Error; err != nil {
+		return fmt.Errorf("failed to list todos: %w", err)
 	}
 
 	// Convert models to entities
 	entities := model.ModelsToEntities(todoModels)
-	return entities, nil
+	pagination.Rows = entities
+
+	return nil
 }
 
 // Count returns the total count of todos (excluding soft deleted ones)
-func (r *TodoRepositoryImpl) Count(ctx context.Context, filters repository.ListFilters) (int64, error) {
+func (r *TodoRepositoryImpl) Count(ctx context.Context, filters repository.TodoQueryParams) (int64, error) {
 	query := r.db.WithContext(ctx).Model(&model.Todo{})
 
 	// Apply filters
@@ -172,23 +156,23 @@ func (r *TodoRepositoryImpl) Count(ctx context.Context, filters repository.ListF
 }
 
 // applyFilters applies filtering conditions to the query
-func (r *TodoRepositoryImpl) applyFilters(query *gorm.DB, filters repository.ListFilters) *gorm.DB {
+func (r *TodoRepositoryImpl) applyFilters(query *gorm.DB, qP repository.TodoQueryParams) *gorm.DB {
 	// Filter by status
-	if filters.Status != nil {
-		query = query.Where("status = ?", string(*filters.Status))
+	if qP.Status != nil {
+		query = query.Where("status = ?", string(*qP.Status))
 	}
 
 	// Filter by due date range
-	if filters.DueBefore != nil {
-		query = query.Where("due_date < ?", *filters.DueBefore)
+	if qP.DueTo != nil {
+		query = query.Where("due_date < ?", *qP.DueTo)
 	}
-	if filters.DueAfter != nil {
-		query = query.Where("due_date > ?", *filters.DueAfter)
+	if qP.DueFrom != nil {
+		query = query.Where("due_date > ?", *qP.DueFrom)
 	}
 
 	// Search in title and description
-	if filters.Search != nil && *filters.Search != "" {
-		search := "%" + *filters.Search + "%"
+	if qP.Keyword != nil && *qP.Keyword != "" {
+		search := "%" + *qP.Keyword + "%"
 		query = query.Where(
 			r.db.Where("title LIKE ?", search).
 				Or("description LIKE ?", search),
