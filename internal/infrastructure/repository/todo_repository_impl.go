@@ -70,35 +70,32 @@ func (r *TodoRepositoryImpl) GetByID(ctx context.Context, id uint) (*entity.Todo
 	return entity, nil
 }
 
-// Update updates an existing todo
-func (r *TodoRepositoryImpl) Update(ctx context.Context, todo *entity.Todo) (*entity.Todo, error) {
+// Update updates an existing todo and returns the number of affected rows
+func (r *TodoRepositoryImpl) Update(ctx context.Context, todo *entity.Todo) (int64, error) {
 	if todo == nil {
-		return nil, errors.New("todo cannot be nil")
+		return 0, errors.New("todo cannot be nil")
 	}
 
 	if todo.ID == 0 {
-		return nil, errors.New("todo ID cannot be 0")
+		return 0, errors.New("todo ID cannot be 0")
 	}
 
 	// Convert entity to model
 	todoModel := model.EntityToModel(todo)
 	if todoModel == nil {
-		return nil, errors.New("failed to convert entity to model")
+		return 0, errors.New("failed to convert entity to model")
 	}
 
-	// Update in database
-	result := r.db.WithContext(ctx).Save(todoModel)
+	// Use Updates to only update existing records (not insert new ones)
+	result := r.db.WithContext(ctx).Model(&model.Todo{}).
+		Where("id = ?", todo.ID).
+		Updates(todoModel)
+	
 	if result.Error != nil {
-		return nil, fmt.Errorf("failed to update todo: %w", result.Error)
+		return 0, fmt.Errorf("failed to update todo: %w", result.Error)
 	}
 
-	if result.RowsAffected == 0 {
-		return nil, errors.New("todo not found")
-	}
-
-	// Convert back to entity and return
-	updatedEntity := model.ModelToEntity(todoModel)
-	return updatedEntity, nil
+	return result.RowsAffected, nil
 }
 
 // Delete soft deletes a todo (sets DeletedAt timestamp)

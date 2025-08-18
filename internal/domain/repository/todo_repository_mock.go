@@ -41,21 +41,6 @@ func (m *MockTodoRepository) EXPECT() *MockTodoRepositoryMockRecorder {
 	return m.recorder
 }
 
-// Count mocks base method.
-func (m *MockTodoRepository) Count(ctx context.Context, filters TodoQueryParams) (int64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Count", ctx, filters)
-	ret0, _ := ret[0].(int64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Count indicates an expected call of Count.
-func (mr *MockTodoRepositoryMockRecorder) Count(ctx, filters any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Count", reflect.TypeOf((*MockTodoRepository)(nil).Count), ctx, filters)
-}
-
 // Create mocks base method.
 func (m *MockTodoRepository) Create(ctx context.Context, todo *entity.Todo) (*entity.Todo, error) {
 	m.ctrl.T.Helper()
@@ -115,10 +100,10 @@ func (mr *MockTodoRepositoryMockRecorder) List(ctx, queryParams, pagination any)
 }
 
 // Update mocks base method.
-func (m *MockTodoRepository) Update(ctx context.Context, todo *entity.Todo) (*entity.Todo, error) {
+func (m *MockTodoRepository) Update(ctx context.Context, todo *entity.Todo) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Update", ctx, todo)
-	ret0, _ := ret[0].(*entity.Todo)
+	ret0, _ := ret[0].(int64)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

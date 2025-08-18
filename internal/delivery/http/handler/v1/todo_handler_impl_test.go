@@ -321,6 +321,193 @@ func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_FindTodo() {
 	}
 }
 
+func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_UpdateTodo() {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name         string
+		body         interface{}
+		mockSetup    func()
+		expectedCode int
+		expectedResp interface{}
+	}{
+		{
+			name: "Invalid JSON",
+			body: "invalid json",
+			mockSetup: func() {
+				// no mock setup needed for JSON parsing error
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: map[string]interface{}{
+				"error": "invalid request format",
+			},
+		},
+		{
+			name: "Missing ID",
+			body: map[string]interface{}{
+				"title":       "updated title",
+				"description": "updated description",
+				"status":      "doing",
+			},
+			mockSetup: func() {
+				// no mock setup needed for validation error
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: map[string]interface{}{
+				"error": "invalid request format",
+			},
+		},
+		{
+			name: "Invalid Status",
+			body: map[string]interface{}{
+				"id":          1,
+				"title":       "updated title",
+				"description": "updated description", 
+				"status":      "invalid_status",
+			},
+			mockSetup: func() {
+				// no mock setup needed for validation error
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: map[string]interface{}{
+				"error": "invalid request format",
+			},
+		},
+		{
+			name: "UseCase Not Found Error",
+			body: map[string]interface{}{
+				"id":          999,
+				"title":       "updated title",
+				"description": "updated description",
+				"status":      "doing",
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					UpdateTodo(gomock.Any(), gomock.Any()).
+					Return(errors.New("not found: todo not found")).
+					Times(1)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedResp: map[string]interface{}{
+				"error": "not found: todo not found",
+			},
+		},
+		{
+			name: "UseCase Validation Error",
+			body: map[string]interface{}{
+				"id":          1,
+				"title":       "valid title",
+				"description": "updated description",
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					UpdateTodo(gomock.Any(), gomock.Any()).
+					Return(errors.New("validation fail: due date must be in the future")).
+					Times(1)
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: map[string]interface{}{
+				"error": "validation fail: due date must be in the future",
+			},
+		},
+		{
+			name: "UseCase Internal Error",
+			body: map[string]interface{}{
+				"id":          1,
+				"title":       "valid title",
+				"description": "updated description",
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					UpdateTodo(gomock.Any(), gomock.Any()).
+					Return(errors.New("internal fail: database connection error")).
+					Times(1)
+			},
+			expectedCode: http.StatusInternalServerError,
+			expectedResp: map[string]interface{}{
+				"error": "internal server error",
+			},
+		},
+		{
+			name: "Success - Full Update",
+			body: map[string]interface{}{
+				"id":          1,
+				"title":       "updated title",
+				"description": "updated description",
+				"status":      "doing",
+				"due_date":    "2024-12-31T23:59:59Z",
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					UpdateTodo(gomock.Any(), gomock.Any()).
+					Return(nil).
+					Times(1)
+			},
+			expectedCode: http.StatusNoContent,
+			expectedResp: nil, // No response body for 204
+		},
+		{
+			name: "Success - Partial Update (no status)",
+			body: map[string]interface{}{
+				"id":          2,
+				"title":       "updated title only",
+				"description": "updated description",
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					UpdateTodo(gomock.Any(), gomock.Any()).
+					Return(nil).
+					Times(1)
+			},
+			expectedCode: http.StatusNoContent,
+			expectedResp: nil, // No response body for 204
+		},
+	}
+
+	for _, tt := range tests {
+		suite.T().Run(tt.name, func(t *testing.T) {
+			// Setup mock
+			tt.mockSetup()
+
+			// Create request
+			var body []byte
+			var err error
+			if str, ok := tt.body.(string); ok {
+				body = []byte(str)
+			} else {
+				body, err = json.Marshal(tt.body)
+				assert.NoError(t, err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/update-todo", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// Create Gin context
+			ctx, _ := gin.CreateTestContext(w)
+			ctx.Request = req
+
+			// Call handler
+			suite.handler.UpdateTodo(ctx)
+
+			// Assertions
+			assert.Equal(t, tt.expectedCode, w.Code)
+
+			if tt.expectedResp != nil {
+				var actualResp interface{}
+				err = json.Unmarshal(w.Body.Bytes(), &actualResp)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedResp, actualResp)
+			} else {
+				// For 204 responses, body should be empty
+				assert.Empty(t, w.Body.String())
+			}
+		})
+	}
+}
+
 func CreateGinContext(target string, body interface{}) (*gin.Context,
 	*httptest.ResponseRecorder) {
 	// Create request

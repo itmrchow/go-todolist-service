@@ -42,6 +42,228 @@ func (suite *TodoUseCaseTestSuite) TearDownTest() {
 	}
 }
 
+func (suite *TodoUseCaseTestSuite) TestUpdateTodo() {
+	ctx := context.Background()
+
+	tests := []struct {
+		name         string
+		req          UpdateTodoRequest
+		setupMock    func()
+		expectErrMsg string
+	}{
+		{
+			name: "validation_fail_zero_id",
+			req: UpdateTodoRequest{
+				ID:    0,
+				Title: "Updated Title",
+			},
+			setupMock: func() {
+				// No mock setup needed for validation error
+			},
+			expectErrMsg: "validation fail",
+		},
+		{
+			name: "get_existing_todo_fail",
+			req: UpdateTodoRequest{
+				ID:    1,
+				Title: "Updated Title",
+			},
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(1)).
+					Return(nil, errors.New("database error")).
+					Times(1)
+			},
+			expectErrMsg: "internal fail",
+		},
+		{
+			name: "todo_not_found",
+			req: UpdateTodoRequest{
+				ID:    999,
+				Title: "Updated Title",
+			},
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(999)).
+					Return(nil, nil). // not found
+					Times(1)
+			},
+			expectErrMsg: "not found",
+		},
+		{
+			name: "invalid_status",
+			req: UpdateTodoRequest{
+				ID:     1,
+				Title:  "Updated Title",
+				Status: stringPtr("invalid_status"),
+			},
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(1)).
+					Return(&entity.Todo{
+						ID:     1,
+						Title:  "Original Title",
+						Status: entity.StatusPending,
+					}, nil).
+					Times(1)
+			},
+			expectErrMsg: "validation fail",
+		},
+		{
+			name: "entity_validation_fail",
+			req: UpdateTodoRequest{
+				ID:    1,
+				Title: "", // Empty title should fail validation
+			},
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(1)).
+					Return(&entity.Todo{
+						ID:     1,
+						Title:  "Original Title",
+						Status: entity.StatusPending,
+					}, nil).
+					Times(1)
+			},
+			expectErrMsg: "validation fail",
+		},
+		{
+			name: "repository_update_fail",
+			req: UpdateTodoRequest{
+				ID:    1,
+				Title: "Updated Title",
+			},
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(1)).
+					Return(&entity.Todo{
+						ID:     1,
+						Title:  "Original Title",
+						Status: entity.StatusPending,
+					}, nil).
+					Times(1)
+
+				suite.mockRepo.EXPECT().
+					Update(ctx, gomock.Any()).
+					Return(int64(0), errors.New("database error")).
+					Times(1)
+			},
+			expectErrMsg: "internal fail",
+		},
+		{
+			name: "no_rows_affected",
+			req: UpdateTodoRequest{
+				ID:    1,
+				Title: "Updated Title",
+			},
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(1)).
+					Return(&entity.Todo{
+						ID:     1,
+						Title:  "Original Title",
+						Status: entity.StatusPending,
+					}, nil).
+					Times(1)
+
+				suite.mockRepo.EXPECT().
+					Update(ctx, gomock.Any()).
+					Return(int64(0), nil). // 0 rows affected
+					Times(1)
+			},
+			expectErrMsg: "not found",
+		},
+		{
+			name: "success_partial_update",
+			req: UpdateTodoRequest{
+				ID:          1,
+				Title:       "Updated Title",
+				Description: stringPtr("Updated Description"),
+				Status:      stringPtr("doing"),
+				// DueDate not provided - should keep existing
+			},
+			setupMock: func() {
+				existingDueDate := time.Now().Add(time.Second)
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(1)).
+					Return(&entity.Todo{
+						ID:          1,
+						Title:       "Original Title",
+						Description: stringPtr("Original Description"),
+						Status:      entity.StatusPending,
+						DueDate:     &existingDueDate,
+						CreatedAt:   timeNow(),
+						UpdatedAt:   timeNow(),
+					}, nil).
+					Times(1)
+
+				suite.mockRepo.EXPECT().
+					Update(ctx, gomock.Any()).
+					DoAndReturn(func(ctx context.Context, todo *entity.Todo) (int64, error) {
+						// Verify partial update logic
+						assert.Equal(suite.T(), "Updated Title", todo.Title)
+						assert.NotNil(suite.T(), todo.Description)
+						assert.Equal(suite.T(), "Updated Description", *todo.Description)
+						assert.Equal(suite.T(), entity.StatusDoing, todo.Status)
+						assert.NotNil(suite.T(), todo.DueDate) // Should keep existing
+						return int64(1), nil
+					}).
+					Times(1)
+			},
+			expectErrMsg: "",
+		},
+		{
+			name: "success_clear_description",
+			req: UpdateTodoRequest{
+				ID:          1,
+				Title:       "Updated Title",
+				Description: stringPtr(""), // Clear description
+			},
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					GetByID(ctx, uint(1)).
+					Return(&entity.Todo{
+						ID:          1,
+						Title:       "Original Title",
+						Description: stringPtr("Original Description"),
+						Status:      entity.StatusPending,
+						CreatedAt:   timeNow(),
+						UpdatedAt:   timeNow(),
+					}, nil).
+					Times(1)
+
+				suite.mockRepo.EXPECT().
+					Update(ctx, gomock.Any()).
+					DoAndReturn(func(ctx context.Context, todo *entity.Todo) (int64, error) {
+						// Verify description was cleared
+						assert.Nil(suite.T(), todo.Description)
+						return int64(1), nil
+					}).
+					Times(1)
+			},
+			expectErrMsg: "",
+		},
+	}
+
+	for _, tt := range tests {
+		suite.T().Run(tt.name, func(t *testing.T) {
+			// Setup mock
+			tt.setupMock()
+
+			// Execute
+			err := suite.uc.UpdateTodo(ctx, tt.req)
+
+			// Verify
+			if tt.expectErrMsg == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectErrMsg)
+			}
+		})
+	}
+}
+
 // helper functions for test
 func stringPtr(s string) *string {
 	return &s

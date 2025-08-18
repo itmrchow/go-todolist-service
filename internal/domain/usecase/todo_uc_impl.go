@@ -98,3 +98,75 @@ func (t *todoUseCaseImpl) FindTodo(ctx context.Context, req FindTodoRequest) (*F
 
 	return resp, nil
 }
+
+// UpdateTodo updates an existing todo with partial update support
+func (t *todoUseCaseImpl) UpdateTodo(ctx context.Context, req UpdateTodoRequest) error {
+	// Validate request
+	if req.ID == 0 {
+		return errors.New("validation fail: ID cannot be 0")
+	}
+
+	// First, get the existing todo to check if it exists
+	existingTodo, err := t.todoRepo.GetByID(ctx, req.ID)
+	if err != nil {
+		return errors.Join(errors.New("internal fail"), err)
+	}
+	if existingTodo == nil {
+		return errors.New("not found: todo not found")
+	}
+
+	// Create updated entity - start with existing values
+	updatedTodo := &entity.Todo{
+		ID:          req.ID,
+		Title:       req.Title,                // Title is always required
+		Description: existingTodo.Description, // Default to existing
+		Status:      existingTodo.Status,      // Default to existing
+		DueDate:     existingTodo.DueDate,     // Default to existing
+		CreatedAt:   existingTodo.CreatedAt,
+		UpdatedAt:   existingTodo.UpdatedAt,
+	}
+
+	// Partial update logic: only update fields that are provided (not nil)
+
+	// Update Description if provided
+	if req.Description != nil {
+		if *req.Description == "" {
+			// Empty string means clear the field
+			updatedTodo.Description = nil
+		} else {
+			// Non-empty string means update to new value
+			updatedTodo.Description = req.Description
+		}
+	}
+
+	// Update Status if provided
+	if req.Status != nil {
+		status := entity.TodoStatus(*req.Status)
+		if !status.IsValid() {
+			return errors.New("validation fail: invalid status")
+		}
+		updatedTodo.Status = status
+	}
+
+	// Update DueDate if provided
+	if req.DueDate != nil {
+		updatedTodo.DueDate = req.DueDate
+	}
+
+	// Validate updated todo using entity rules
+	if _, err := entity.NewTodo(updatedTodo.Title, updatedTodo.Description, &updatedTodo.Status, updatedTodo.DueDate); err != nil {
+		return errors.Join(errors.New("validation fail"), err)
+	}
+
+	// Update in repository
+	rowsAffected, err := t.todoRepo.Update(ctx, updatedTodo)
+	if err != nil {
+		return errors.Join(errors.New("internal fail"), err)
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("not found: todo not found")
+	}
+
+	return nil
+}

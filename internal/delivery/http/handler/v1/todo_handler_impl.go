@@ -130,5 +130,51 @@ func (t *TodoHandlerImpl) FindTodo(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, httpResp)
+}
 
+func (t *TodoHandlerImpl) UpdateTodo(c *gin.Context) {
+	// Parse HTTP request body into HTTP DTO
+	var httpReq v1.UpdateTodoRequest
+	if err := c.ShouldBindJSON(&httpReq); err != nil {
+		t.logger.Error().Err(err).Msg("invalid request format")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request format",
+		})
+		return
+	}
+
+	// Convert HTTP DTO to UseCase DTO
+	ucReq := usecase.UpdateTodoRequest{
+		ID:          httpReq.ID,
+		Title:       httpReq.Title,
+		Description: httpReq.Description,
+		Status:      httpReq.Status,
+		DueDate:     httpReq.DueDate,
+	}
+
+	// Call usecase
+	err := t.todoUc.UpdateTodo(c, ucReq)
+	if err != nil {
+		// Handle different error types
+		if strings.Contains(err.Error(), "validation fail") {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		// Default error handling
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
+
+	// Return HTTP 204 No Content for successful update
+	c.AbortWithStatus(http.StatusNoContent)
 }
