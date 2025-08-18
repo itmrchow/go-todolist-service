@@ -1,0 +1,157 @@
+# CreateTodo API Documentation
+# 新增 Todo 功能的 API 測試文件
+
+### Create Todo - Basic (只有標題)
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "學習 Go 語言"
+}
+
+### Create Todo - Full Fields (完整欄位)
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "完成專案開發",
+    "description": "使用 Clean Architecture 和 DDD 原則開發 Todo 服務",
+    "status": "pending",
+    "due_date": "2024-12-31T23:59:59Z"
+}
+
+### Create Todo - With Due Date Only (只有標題和到期日)
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "開會討論需求",
+    "due_date": "2024-08-10T14:30:00Z"
+}
+
+### Create Todo - Doing Status (進行中狀態)
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "撰寫技術文件",
+    "description": "完成 API 設計文件",
+    "status": "doing"
+}
+
+### Create Todo - Done Status (已完成狀態)
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "環境設定",
+    "description": "設定開發環境和資料庫連線",
+    "status": "done"
+}
+
+### Create Todo - Chinese Characters Test (中文字符測試)
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "測試中文標題長度限制",
+    "description": "這個描述測試中文字符的長度限制，確保系統能正確處理中文字符的計算。"
+}
+
+###
+### Error Cases - 錯誤測試案例
+###
+
+### Create Todo - Invalid (Title Too Long) - Should return 400
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "這是一個非常長的標題，超過了二十個中文字符的限制，應該要被拒絕"
+}
+
+### Create Todo - Invalid (Missing Title) - Should return 400
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "description": "缺少標題的 Todo"
+}
+
+### Create Todo - Invalid (Empty Title) - Should return 400
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "",
+    "description": "空白標題測試"
+}
+
+### Create Todo - Invalid (Description Too Long) - Should return 400
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "測試描述長度",
+    "description": "這是一個非常長的描述，超過了一百個中文字符的限制。這個描述故意寫得很長，目的是要測試系統的驗證功能。當描述超過一百個中文字符時，系統應該要返回錯誤。這個測試用例確保了我們的驗證邏輯正確運作。"
+}
+
+### Create Todo - Invalid Date Format - Should return 400
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "測試無效日期格式",
+    "due_date": "2024-12-31 23:59:59"
+}
+
+### Create Todo - Invalid Status - Should return 400
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "測試無效狀態",
+    "status": "invalid_status"
+}
+
+### Create Todo - Invalid JSON - Should return 400
+POST http://localhost:8080/api/v1/todos
+Content-Type: application/json
+
+{
+    "title": "測試無效 JSON"
+    "description": "缺少逗號的 JSON"
+}
+
+###
+### Expected Response Examples - 預期回應範例
+###
+
+# 成功回應 (201 Created):
+# {
+#     "todo": {
+#         "id": 1,
+#         "title": "學習 Go 語言",
+#         "description": null,
+#         "status": "pending",
+#         "due_date": null,
+#         "created_at": "2024-08-04T10:00:00Z",
+#         "updated_at": "2024-08-04T10:00:00Z"
+#     }
+# }
+
+# 驗證錯誤回應 (400 Bad Request):
+# {
+#     "error": {
+#         "code": "VALIDATION_ERROR",
+#         "message": "title cannot exceed 20 characters"
+#     }
+# }
+
+# 伺服器錯誤回應 (500 Internal Server Error):
+# {
+#     "error": {
+#         "code": "INTERNAL_SERVER_ERROR",
+#         "message": "An unexpected error occurred"
+#     }
+# }
