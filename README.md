@@ -36,3 +36,9 @@ todolist 基於 golang 與 clean architecture 的實作.
 | created_at  | time   | N   | Y    | task create time |
 | updated_at  | time   | N   | Y    | task update time |
 | deleted_at  | time   | N   | Y    | task update time |
+
+# note
+
+## 產生mock
+- 參考 todo_uc.go , 添加tag
+- ` go generate ./...`

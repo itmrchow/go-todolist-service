@@ -1,7 +1,16 @@
-# version
+### version
 GET http://localhost:8080/version
 
-# health
+### health
 GET http://localhost:8080/health
 
-# v1
+### v1
+### create-todo
+POST http://localhost:8080/api/v1/create-todo
+Content-Type: application/json
+
+{
+  "title": "Test",
+  "description": "test desc",
+  "due_date": "2025-10-31T00:00:00Z"
+}

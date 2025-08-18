@@ -10,9 +10,14 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"itmrchow/go-todolist-service/internal/delivery/http/handler"
+	v1 "itmrchow/go-todolist-service/internal/delivery/http/handler/v1"
+	"itmrchow/go-todolist-service/internal/domain/usecase"
 	"itmrchow/go-todolist-service/internal/infrastructure/config"
 	"itmrchow/go-todolist-service/internal/infrastructure/database"
+	"itmrchow/go-todolist-service/internal/infrastructure/database/model"
 	"itmrchow/go-todolist-service/internal/infrastructure/logger"
+	"itmrchow/go-todolist-service/internal/infrastructure/repository"
 	"itmrchow/go-todolist-service/internal/infrastructure/router"
 	"itmrchow/go-todolist-service/internal/infrastructure/server"
 )
@@ -42,13 +47,33 @@ func main() {
 
 	// DB - 傳入 context，讓資料庫可以監聽取消信號
 	db := &database.MySQLDBImpl{}
-	_, dbErr := db.Connect(ctx, config.GetDatabaseConfig())
+	gormDb, dbErr := db.Connect(ctx, config.GetDatabaseConfig())
 	if dbErr != nil {
 		log.Fatal().Err(dbErr).Str("module", "database").Msg("database connection error")
 	}
 
+	// Run database migrations
+	migrationErr := db.Migrate(&model.Todo{})
+	if migrationErr != nil {
+		log.Fatal().Err(migrationErr).Str("module", "database").Msg("database migration error")
+	}
+	log.Info().Str("module", "database").Msg("Database migration completed successfully")
+
+	// Repository
+	todoRepo := repository.NewTodoRepository(gormDb, &logger)
+
+	// Usecase
+	todoUc := usecase.NewTodoUseCaseImpl(todoRepo)
+
+	// Router handlers
+	healthHandler := handler.NewHealthHandler()
+	todoV1Handler := v1.NewTodoHandlerImpl(todoUc) // 假設有一個 TodoUseCase
+
 	// Router
-	appRouter := router.NewRouter()
+	appRouter := router.NewRouter(
+		healthHandler,
+		todoV1Handler,
+	)
 	engine := appRouter.SetupRoutes()
 
 	// Server - 傳入 context，讓服務器可以監聽取消信號
