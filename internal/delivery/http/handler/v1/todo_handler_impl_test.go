@@ -291,18 +291,18 @@ func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_FindTodo() {
 				var resp v1.FindTodoResponse
 				err := json.Unmarshal(w.Body.Bytes(), &resp)
 				assert.NoError(suite.T(), err)
-				
+
 				// Compare non-time fields first
 				assert.Equal(suite.T(), len(httpResp.Todos), len(resp.Todos))
 				if len(httpResp.Todos) > 0 && len(resp.Todos) > 0 {
 					expectedTodo := httpResp.Todos[0]
 					actualTodo := resp.Todos[0]
-					
+
 					assert.Equal(suite.T(), expectedTodo.ID, actualTodo.ID)
 					assert.Equal(suite.T(), expectedTodo.Title, actualTodo.Title)
 					assert.Equal(suite.T(), expectedTodo.Description, actualTodo.Description)
 					assert.Equal(suite.T(), expectedTodo.Status, actualTodo.Status)
-					
+
 					// For time fields, just check they are not zero values
 					if expectedTodo.DueDate != nil {
 						assert.NotNil(suite.T(), actualTodo.DueDate)
@@ -362,7 +362,7 @@ func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_UpdateTodo() {
 			body: map[string]interface{}{
 				"id":          1,
 				"title":       "updated title",
-				"description": "updated description", 
+				"description": "updated description",
 				"status":      "invalid_status",
 			},
 			mockSetup: func() {
@@ -491,6 +491,132 @@ func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_UpdateTodo() {
 
 			// Call handler
 			suite.handler.UpdateTodo(ctx)
+
+			// Assertions
+			assert.Equal(t, tt.expectedCode, w.Code)
+
+			if tt.expectedResp != nil {
+				var actualResp interface{}
+				err = json.Unmarshal(w.Body.Bytes(), &actualResp)
+				assert.NoError(t, err)
+				assert.Equal(t, tt.expectedResp, actualResp)
+			} else {
+				// For 204 responses, body should be empty
+				assert.Empty(t, w.Body.String())
+			}
+		})
+	}
+}
+
+func (suite *TodoHandlerImplTestSuite) TestTodoHandlerImpl_DeleteTodo() {
+	gin.SetMode(gin.TestMode)
+
+	tests := []struct {
+		name         string
+		body         interface{}
+		mockSetup    func()
+		expectedCode int
+		expectedResp interface{}
+	}{
+		{
+			name: "Invalid JSON",
+			body: "invalid json",
+			mockSetup: func() {
+				// no mock setup needed for JSON parsing error
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: map[string]interface{}{
+				"error": "invalid request format",
+			},
+		},
+		{
+			name: "Missing ID",
+			body: map[string]interface{}{
+				// ID missing - should fail validation
+			},
+			mockSetup: func() {
+				// no mock setup needed for validation error
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedResp: map[string]interface{}{
+				"error": "invalid request format",
+			},
+		},
+		{
+			name: "UseCase Not Found Error",
+			body: map[string]interface{}{
+				"id": 999,
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					DeleteTodo(gomock.Any(), uint(999)).
+					Return(errors.New("not found: todo not found")).
+					Times(1)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedResp: map[string]interface{}{
+				"error": "not found: todo not found",
+			},
+		},
+		{
+			name: "UseCase Internal Error",
+			body: map[string]interface{}{
+				"id": 1,
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					DeleteTodo(gomock.Any(), uint(1)).
+					Return(errors.New("internal fail: database connection error")).
+					Times(1)
+			},
+			expectedCode: http.StatusInternalServerError,
+			expectedResp: map[string]interface{}{
+				"error": "internal server error",
+			},
+		},
+		{
+			name: "Success - Delete Todo",
+			body: map[string]interface{}{
+				"id": 1,
+			},
+			mockSetup: func() {
+				suite.mockTodoUc.EXPECT().
+					DeleteTodo(gomock.Any(), uint(1)).
+					Return(nil).
+					Times(1)
+			},
+			expectedCode: http.StatusNoContent,
+			expectedResp: nil, // No response body for 204
+		},
+	}
+
+	for _, tt := range tests {
+		suite.T().Run(tt.name, func(t *testing.T) {
+			// Setup mock
+			tt.mockSetup()
+
+			// Create request
+			var body []byte
+			var err error
+			if str, ok := tt.body.(string); ok {
+				body = []byte(str)
+			} else {
+				body, err = json.Marshal(tt.body)
+				assert.NoError(t, err)
+			}
+
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/delete-todo", bytes.NewBuffer(body))
+			req.Header.Set("Content-Type", "application/json")
+
+			// Create response recorder
+			w := httptest.NewRecorder()
+
+			// Create Gin context
+			ctx, _ := gin.CreateTestContext(w)
+			ctx.Request = req
+
+			// Call handler
+			suite.handler.DeleteTodo(ctx)
 
 			// Assertions
 			assert.Equal(t, tt.expectedCode, w.Code)

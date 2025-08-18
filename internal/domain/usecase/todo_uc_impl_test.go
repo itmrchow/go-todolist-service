@@ -533,3 +533,74 @@ func (suite *TodoUseCaseTestSuite) TestFindTodo() {
 		})
 	}
 }
+
+func (suite *TodoUseCaseTestSuite) TestDeleteTodo() {
+	ctx := context.Background()
+
+	tests := []struct {
+		name         string
+		id           uint
+		setupMock    func()
+		expectErrMsg string
+	}{
+		{
+			name: "validation_fail_zero_id",
+			id:   0,
+			setupMock: func() {
+				// No mock setup needed for validation error
+			},
+			expectErrMsg: "validation fail",
+		},
+		{
+			name: "repository_delete_fail",
+			id:   1,
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					Delete(ctx, uint(1)).
+					Return(int64(0), errors.New("database error")).
+					Times(1)
+			},
+			expectErrMsg: "internal fail",
+		},
+		{
+			name: "todo_not_found_no_rows_affected",
+			id:   999,
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					Delete(ctx, uint(999)).
+					Return(int64(0), nil). // 0 rows affected means not found
+					Times(1)
+			},
+			expectErrMsg: "not found",
+		},
+		{
+			name: "success_delete_todo",
+			id:   1,
+			setupMock: func() {
+				suite.mockRepo.EXPECT().
+					Delete(ctx, uint(1)).
+					Return(int64(1), nil). // 1 row affected means success
+					Times(1)
+			},
+			expectErrMsg: "",
+		},
+	}
+
+	for _, tt := range tests {
+		suite.T().Run(tt.name, func(t *testing.T) {
+			// Setup mock
+			tt.setupMock()
+
+			// Execute
+			err := suite.uc.DeleteTodo(ctx, tt.id)
+
+			// Verify
+			if tt.expectErrMsg == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectErrMsg)
+			}
+		})
+	}
+}

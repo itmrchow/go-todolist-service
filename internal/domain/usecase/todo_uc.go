@@ -20,7 +20,7 @@ type TodoUseCase interface {
 
 	// GetTodo(ctx context.Context, id uint) (*GetTodoResponse, error)
 	UpdateTodo(ctx context.Context, req UpdateTodoRequest) error
-	// DeleteTodo(ctx context.Context, id uint) error
+	DeleteTodo(ctx context.Context, id uint) error
 }
 
 type CreateTodoRequest struct {
@@ -61,8 +61,8 @@ type TodoResponse struct {
 
 type UpdateTodoRequest struct {
 	ID          uint       `json:"id"`
-	Title       string     `json:"title"` // always required for validation
+	Title       string     `json:"title"`       // always required for validation
 	Description *string    `json:"description"` // nil=keep current, ""=clear, "value"=update
-	Status      *string    `json:"status"`     // nil=keep current, "value"=update  
-	DueDate     *time.Time `json:"due_date"`   // nil=keep current, time=update
+	Status      *string    `json:"status"`      // nil=keep current, "value"=update
+	DueDate     *time.Time `json:"due_date"`    // nil=keep current, time=update
 }

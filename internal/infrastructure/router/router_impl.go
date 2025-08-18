@@ -52,6 +52,7 @@ func (r *RouterImpl) RegisterV1Routes(routerGroup *gin.RouterGroup) {
 	routerGroup.POST("/create-todo", r.todoV1Handler.CreateTodo) // 新增todo
 	routerGroup.POST("/find-todo", r.todoV1Handler.FindTodo)     // 查詢todo
 	routerGroup.POST("/update-todo", r.todoV1Handler.UpdateTodo) // 更新todo
+	routerGroup.POST("/delete-todo", r.todoV1Handler.DeleteTodo) // 更新todo
 
 	// 目前 v1 路由群組為空，未來將在此新增業務邏輯路由
 	// 例如：

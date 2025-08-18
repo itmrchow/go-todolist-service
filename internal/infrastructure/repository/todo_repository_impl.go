@@ -90,7 +90,7 @@ func (r *TodoRepositoryImpl) Update(ctx context.Context, todo *entity.Todo) (int
 	result := r.db.WithContext(ctx).Model(&model.Todo{}).
 		Where("id = ?", todo.ID).
 		Updates(todoModel)
-	
+
 	if result.Error != nil {
 		return 0, fmt.Errorf("failed to update todo: %w", result.Error)
 	}
@@ -99,17 +99,13 @@ func (r *TodoRepositoryImpl) Update(ctx context.Context, todo *entity.Todo) (int
 }
 
 // Delete soft deletes a todo (sets DeletedAt timestamp)
-func (r *TodoRepositoryImpl) Delete(ctx context.Context, id uint) error {
+func (r *TodoRepositoryImpl) Delete(ctx context.Context, id uint) (int64, error) {
 	result := r.db.WithContext(ctx).Delete(&model.Todo{}, id)
 	if result.Error != nil {
-		return fmt.Errorf("failed to delete todo: %w", result.Error)
+		return 0, fmt.Errorf("failed to delete todo: %w", result.Error)
 	}
 
-	if result.RowsAffected == 0 {
-		return errors.New("todo not found")
-	}
-
-	return nil
+	return result.RowsAffected, nil
 }
 
 // List retrieves todos with pagination and filtering options

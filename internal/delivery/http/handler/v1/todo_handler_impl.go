@@ -178,3 +178,34 @@ func (t *TodoHandlerImpl) UpdateTodo(c *gin.Context) {
 	// Return HTTP 204 No Content for successful update
 	c.AbortWithStatus(http.StatusNoContent)
 }
+
+func (t *TodoHandlerImpl) DeleteTodo(c *gin.Context) {
+	// Parse HTTP request body into HTTP DTO
+	var httpReq v1.DeleteTodoRequest
+	if err := c.ShouldBindJSON(&httpReq); err != nil {
+		t.logger.Error().Err(err).Msg("invalid request format")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "invalid request format",
+		})
+		return
+	}
+
+	// Call usecase
+	err := t.todoUc.DeleteTodo(c, httpReq.ID)
+	if err != nil {
+		// Handle different error types
+		if strings.Contains(err.Error(), "not found") {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		// Default error handling
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "internal server error",
+		})
+		return
+	}
+
+	c.AbortWithStatus(http.StatusNoContent)
+}

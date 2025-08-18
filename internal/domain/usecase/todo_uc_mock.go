@@ -55,6 +55,20 @@ func (mr *MockTodoUseCaseMockRecorder) CreateTodo(ctx, req any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateTodo", reflect.TypeOf((*MockTodoUseCase)(nil).CreateTodo), ctx, req)
 }
 
+// DeleteTodo mocks base method.
+func (m *MockTodoUseCase) DeleteTodo(ctx context.Context, id uint) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteTodo", ctx, id)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteTodo indicates an expected call of DeleteTodo.
+func (mr *MockTodoUseCaseMockRecorder) DeleteTodo(ctx, id any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteTodo", reflect.TypeOf((*MockTodoUseCase)(nil).DeleteTodo), ctx, id)
+}
+
 // FindTodo mocks base method.
 func (m *MockTodoUseCase) FindTodo(ctx context.Context, req FindTodoRequest) (*FindTodoResponse, error) {
 	m.ctrl.T.Helper()

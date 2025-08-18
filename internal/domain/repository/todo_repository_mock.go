@@ -57,11 +57,12 @@ func (mr *MockTodoRepositoryMockRecorder) Create(ctx, todo any) *gomock.Call {
 }
 
 // Delete mocks base method.
-func (m *MockTodoRepository) Delete(ctx context.Context, id uint) error {
+func (m *MockTodoRepository) Delete(ctx context.Context, id uint) (int64, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx, id)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // Delete indicates an expected call of Delete.
