@@ -170,3 +170,23 @@ func (t *todoUseCaseImpl) UpdateTodo(ctx context.Context, req UpdateTodoRequest)
 
 	return nil
 }
+
+// DeleteTodo deletes a todo by ID
+func (t *todoUseCaseImpl) DeleteTodo(ctx context.Context, id uint) error {
+	// Validate request
+	if id == 0 {
+		return errors.New("validation fail: ID cannot be 0")
+	}
+
+	// Delete in repository
+	rowsAffected, err := t.todoRepo.Delete(ctx, id)
+	if err != nil {
+		return errors.Join(errors.New("internal fail"), err)
+	}
+
+	if rowsAffected == 0 {
+		return errors.New("not found: todo not found")
+	}
+
+	return nil
+}

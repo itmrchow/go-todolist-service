@@ -22,7 +22,7 @@ type TodoRepository interface {
 	Update(ctx context.Context, todo *entity.Todo) (int64, error)
 
 	// Delete soft deletes a todo (sets DeletedAt timestamp)
-	Delete(ctx context.Context, id uint) error
+	Delete(ctx context.Context, id uint) (int64, error)
 
 	// List retrieves todos with pagination and filtering options
 	List(ctx context.Context, queryParams TodoQueryParams, pagination *Pagination[entity.Todo]) error

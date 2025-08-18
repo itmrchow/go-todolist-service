@@ -150,7 +150,7 @@ func (suite *TodoRepositoryTestSuite) TestGetByID_SoftDeleted() {
 	suite.Require().NoError(err)
 
 	// Soft delete the todo
-	err = suite.repo.Delete(suite.ctx, createdTodo.ID)
+	_, err = suite.repo.Delete(suite.ctx, createdTodo.ID)
 	suite.Require().NoError(err)
 
 	// Act
@@ -181,7 +181,7 @@ func (suite *TodoRepositoryTestSuite) TestUpdate_Success() {
 	// Assert
 	suite.NoError(err)
 	suite.Equal(int64(1), rowsAffected)
-	
+
 	// Verify the update by fetching the record
 	updatedTodo, err := suite.repo.GetByID(suite.ctx, createdTodo.ID)
 	suite.NoError(err)
@@ -235,7 +235,7 @@ func (suite *TodoRepositoryTestSuite) TestUpdate_NotFound() {
 	rowsAffected, err := suite.repo.Update(suite.ctx, nonExistentTodo)
 
 	// Assert
-	suite.NoError(err) // No error with Updates method
+	suite.NoError(err)                  // No error with Updates method
 	suite.Equal(int64(0), rowsAffected) // 0 rows affected means not found
 }
 
@@ -248,7 +248,7 @@ func (suite *TodoRepositoryTestSuite) TestDelete_Success() {
 	suite.Require().NoError(err)
 
 	// Act
-	err = suite.repo.Delete(suite.ctx, createdTodo.ID)
+	_, err = suite.repo.Delete(suite.ctx, createdTodo.ID)
 
 	// Assert
 	suite.NoError(err)
@@ -261,11 +261,12 @@ func (suite *TodoRepositoryTestSuite) TestDelete_Success() {
 
 func (suite *TodoRepositoryTestSuite) TestDelete_NotFound() {
 	// Act
-	err := suite.repo.Delete(suite.ctx, 999)
+	rowsAffected, err := suite.repo.Delete(suite.ctx, 999) // non-existent ID
 
 	// Assert
-	suite.Error(err)
-	suite.Contains(err.Error(), "todo not found")
+	suite.NoError(err)
+	suite.Equal(int64(0), rowsAffected) // 0 rows affected means not found)
+
 }
 
 func (suite *TodoRepositoryTestSuite) TestList_WithFilters() {

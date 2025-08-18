@@ -39,3 +39,10 @@ Content-Type: application/json
   "description": "update test desc"
 }
 
+### delete-todo
+POST http://localhost:8080/api/v1/delete-todo
+Content-Type: application/json
+
+{
+  "id": 2
+}
